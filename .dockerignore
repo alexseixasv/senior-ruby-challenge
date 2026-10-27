@@ -1,0 +1,7 @@
+.git
+.interviewer
+frontend/node_modules
+frontend/dist
+backend/log
+backend/tmp
+backend/coverage

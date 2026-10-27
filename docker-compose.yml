@@ -1,0 +1,95 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: flowops
+      POSTGRES_PASSWORD: flowops
+      POSTGRES_DB: flowops_development
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowops -d flowops_development"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    environment: &backend_env
+      RAILS_ENV: development
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_USERNAME: flowops
+      DATABASE_PASSWORD: flowops
+      DATABASE_NAME: flowops_development
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY_BASE: dev-only-secret-key-base
+      PAYMENTS_WEBHOOK_TOKEN: dev-webhook-token
+      AI_PROVIDER: mock
+      AI_TIMEOUT_SECONDS: "2"
+      OPENAI_API_KEY: ""
+      OPENAI_BASE_URL: https://api.openai.com/v1
+      OPENAI_MODEL: gpt-4o-mini
+      CORS_ORIGINS: http://localhost:5173
+      RAILS_LOG_TO_STDOUT: "true"
+      RUN_MIGRATIONS: "true"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/up"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+  sidekiq:
+    build: ./backend
+    environment:
+      <<: *backend_env
+      RUN_MIGRATIONS: "false"
+    command: ["bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  frontend_node_modules:

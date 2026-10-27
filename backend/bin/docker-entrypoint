@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+def wait_for_postgres
+  host = ENV["DATABASE_HOST"]
+  return if host.nil? || host.empty?
+
+  user = ENV.fetch("DATABASE_USERNAME", "flowops")
+  port = ENV.fetch("DATABASE_PORT", "5432")
+
+  60.times do
+    ready = system("pg_isready", "-h", host, "-p", port, "-U", user, out: File::NULL, err: File::NULL)
+    return if ready
+
+    puts "Waiting for PostgreSQL at #{host}:#{port}..."
+    sleep 1
+  end
+
+  abort "PostgreSQL did not become ready in time"
+end
+
+wait_for_postgres
+
+if ENV["RUN_MIGRATIONS"] == "true"
+  abort "rails db:prepare failed" unless system("ruby", "bin/rails", "db:prepare")
+end
+
+exec(*ARGV)

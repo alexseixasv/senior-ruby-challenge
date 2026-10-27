@@ -1,0 +1,21 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 10) %>
+  prepared_statements: false
+  host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
+  username: <%= ENV.fetch("DATABASE_USERNAME", "flowops") %>
+  password: <%= ENV.fetch("DATABASE_PASSWORD", "flowops") %>
+  port: <%= ENV.fetch("DATABASE_PORT", 5432) %>
+
+development:
+  <<: *default
+  database: <%= ENV.fetch("DATABASE_NAME", "flowops_development") %>
+
+test:
+  <<: *default
+  database: flowops_test
+
+production:
+  <<: *default
+  database: <%= ENV.fetch("DATABASE_NAME", "flowops_production") %>
